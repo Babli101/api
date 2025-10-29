@@ -4,9 +4,10 @@ const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
+require('dotenv').config(); // Load environment variables
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(cors());
@@ -40,29 +41,28 @@ const upload = multer({ storage });
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // -----------------------
-// Routes (preserved exactly as requested)
+// Routes
 // -----------------------
 const projectRoutes = require('./routes/projectRoutes');
 app.use('/api/projects', projectRoutes);
 
-// Subscribe route
 const subscribeRoute = require('./routes/subscribe');
 app.use('/api/subscribe', subscribeRoute);
 
-// Contact route
 const contactRoutes = require('./routes/contactRoutes');
 app.use('/api/contact', contactRoutes);
-// -----------------------
 
-// MongoDB connection
-mongoose.connect('mongodb://127.0.0.1:27017/ExploreRealty', {
+// -----------------------
+// MongoDB Connection
+// -----------------------
+mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true
 })
 .then(() => console.log('✅ MongoDB connected'))
 .catch(err => console.log('❌ MongoDB connection error:', err));
 
-// Generic error handler (optional, best practice)
+// Generic error handler
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ error: err.message });
