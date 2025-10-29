@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const Subscriber = require('../models/subscriber');
+const Subscriber = require('../models/Subscriber');
 
 // POST /api/subscribe
 router.post('/', async (req, res) => {
