@@ -32,7 +32,7 @@ const upload = multer({ storage });
 router.post(
   '/',
   upload.fields([
-    { name: 'gallery', maxCount: 10 },
+    { name: 'gallery', maxCount: 15 },
     { name: 'brochure', maxCount: 1 }
   ]),
   async (req, res) => {
