@@ -46,6 +46,13 @@ const upload = multer({ storage });
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // -----------------------
+// Default Root Route (FIX)
+// -----------------------
+app.get('/', (req, res) => {
+  res.send('Explore Realty API is running...');
+});
+
+// -----------------------
 // Routes
 // -----------------------
 const projectRoutes = require('./routes/projectRoutes');
@@ -53,12 +60,10 @@ const subscribeRoute = require('./routes/subscribe');
 const contactRoutes = require('./routes/contactRoutes');
 const loginRoutes = require('./routes/loginRoutes');
 
-
 app.use('/api/projects', projectRoutes);
 app.use('/api/subscribe', subscribeRoute);
 app.use('/api/contact', contactRoutes);
 app.use('/api/auth', loginRoutes);
-
 
 // -----------------------
 // MongoDB Connection
