@@ -41,12 +41,19 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 // -----------------------
-// Static Files
+// STATIC FILES FIX FOR VERSEL / RENDER
 // -----------------------
+app.use('/uploads', (req, res, next) => {
+  res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+  res.setHeader("Cross-Origin-Embedder-Policy", "unsafe-none");
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  next();
+});
+
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // -----------------------
-// Default Root Route (FIX)
+// Root Route
 // -----------------------
 app.get('/', (req, res) => {
   res.send('Explore Realty API is running...');
