@@ -41,7 +41,7 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 // -----------------------
-// STATIC FILES FIX FOR VERSEL / RENDER
+// ⚠️ FINAL STATIC FILE FIX (Render + Vercel Compatible)
 // -----------------------
 app.use('/uploads', (req, res, next) => {
   res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
@@ -50,7 +50,16 @@ app.use('/uploads', (req, res, next) => {
   next();
 });
 
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use(
+  '/uploads',
+  express.static(path.join(__dirname, 'uploads'), {
+    setHeaders: (res) => {
+      res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+      res.setHeader("Cross-Origin-Embedder-Policy", "unsafe-none");
+      res.setHeader("Access-Control-Allow-Origin", "*");
+    }
+  })
+);
 
 // -----------------------
 // Root Route
