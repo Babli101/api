@@ -1,43 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const multer = require('multer');
 const Project = require('../models/project');
+const { upload } = require('../config/cloudinary'); // Cloudinary Upload
 const path = require('path');
-const fs = require('fs');
 
 // ---------------------------------------------
-// Upload folder (root/uploads/projects/...)
-// ---------------------------------------------
-const uploadsDir = path.join(__dirname, '..', 'uploads', 'projects');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
-
-// ---------------------------------------------
-// Multer Storage
-// ---------------------------------------------
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const projectFolder = req.body.name
-      ? req.body.name.replace(/\s+/g, '-')
-      : ('project-' + Date.now());
-
-    const folder = path.join(uploadsDir, projectFolder);
-    if (!fs.existsSync(folder)) fs.mkdirSync(folder, { recursive: true });
-
-    cb(null, folder);
-  },
-  filename: (req, file, cb) => {
-    const safeName = file.originalname.replace(/\s+/g, '-');
-    const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    cb(null, unique + '-' + safeName);
-  }
-});
-
-const upload = multer({ storage });
-
-// ---------------------------------------------
-// ADD PROJECT
+// ADD PROJECT (Cloudinary Upload)
 // ---------------------------------------------
 router.post(
   '/',
@@ -49,24 +17,21 @@ router.post(
     try {
       const data = req.body;
 
-      // BASE URL
-      const baseUrl = `${req.protocol}://${req.get('host')}`;
-
-      // FIX → Generate correct URL
-      const gallery = req.files['gallery']
-        ? req.files['gallery'].map(f => ({
-          url: `${baseUrl}/uploads/projects/${path.basename(path.dirname(f.path))}/${path.basename(f.filename)}`,
-          filename: f.originalname
-        }))
+      // Cloudinary gallery
+      const gallery = req.files["gallery"]
+        ? req.files["gallery"].map(f => ({
+            url: f.path,        // Cloudinary URL
+            filename: f.filename
+          }))
         : [];
 
-      const brochure = req.files['brochure']
+      // Cloudinary brochure
+      const brochure = req.files["brochure"]
         ? {
-          url: `${baseUrl}/uploads/projects/${path.basename(path.dirname(req.files['brochure'][0].path))}/${req.files['brochure'][0].filename}`,
-          filename: req.files['brochure'][0].originalname
-        }
+            url: req.files["brochure"][0].path,
+            filename: req.files["brochure"][0].filename
+          }
         : null;
-
 
       const location = {
         main: data.location,
@@ -75,7 +40,7 @@ router.post(
         location3: data.location3,
         location4: data.location4,
         location5: data.location5,
-        mapEmbed: data.mapEmbed
+        mapEmbed: data.mapEmbed,
       };
 
       const project = new Project({
@@ -100,11 +65,10 @@ router.post(
       });
 
       await project.save();
-
       res.status(201).json({ success: true, project });
 
     } catch (error) {
-      console.log(error);
+      console.error(error);
       res.status(500).json({ success: false, message: 'Server error' });
     }
   }
@@ -128,7 +92,8 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const project = await Project.findById(req.params.id);
-    if (!project) return res.status(404).json({ success: false, message: 'Not found' });
+    if (!project)
+      return res.status(404).json({ success: false, message: 'Not found' });
 
     res.json({ success: true, project });
   } catch (err) {
@@ -137,31 +102,18 @@ router.get('/:id', async (req, res) => {
 });
 
 // ---------------------------------------------
-// DELETE PROJECT
+// DELETE PROJECT (Cloudinary)
 // ---------------------------------------------
 router.delete('/:id', async (req, res) => {
   try {
     const project = await Project.findById(req.params.id);
-    if (!project) return res.status(404).json({ success: false, message: 'Not found' });
+    if (!project)
+      return res.status(404).json({ success: false, message: 'Not found' });
 
-    // Delete gallery images
-    if (project.gallery?.length) {
-      project.gallery.forEach(img => {
-        if (!img.url) return;
-
-        const filePath = path.join(__dirname, '..', img.url.replace(baseUrl, '').replace('/',''));
-        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-      });
-    }
-
-    // Delete brochure
-    if (project.brochure?.url) {
-      const filePath = path.join(__dirname, '..', project.brochure.url.replace(baseUrl, '').replace('/',''));
-      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-    }
+    // Cloudinary files cannot be deleted with file unlink
+    // (Needs public_id, optional future feature)
 
     await Project.deleteOne({ _id: project._id });
-
     res.json({ success: true });
 
   } catch (err) {
@@ -169,7 +121,5 @@ router.delete('/:id', async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 });
-
-
 
 module.exports = router;

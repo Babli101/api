@@ -18,8 +18,7 @@ app.use(express.urlencoded({ extended: true }));
 // -----------------------------
 // Static file serving for uploads
 // -----------------------------
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-
+app.use('/uploads/projects', express.static(path.join(__dirname, 'uploads', 'projects')));
 // -----------------------------
 // Routes
 // -----------------------------
