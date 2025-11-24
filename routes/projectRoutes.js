@@ -38,18 +38,12 @@ router.post(
   async (req, res) => {
     try {
       const data = req.body;
-
       const gallery = req.files['gallery']
-        ? req.files['gallery'].map(f => {
-          const relativePath = f.path.split('uploads')[1];
-          return {
-            url: `/uploads${relativePath.replace(/\\/g, '/')}`,
-            filename: f.originalname
-          };
-        })
+        ? req.files['gallery'].map(f => ({
+          url: `/uploads/${f.filename}`,
+          filename: f.originalname
+        }))
         : [];
-
-
       const brochure = req.files['brochure']
         ? {
           url: `/uploads/${req.files['brochure'][0].filename}`,
