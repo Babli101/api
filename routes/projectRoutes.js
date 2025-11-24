@@ -141,23 +141,35 @@ router.delete('/:id', async (req, res) => {
     if (!project) return res.status(404).json({ success: false, message: 'Not found' });
 
     // Delete gallery images
-    project.gallery.forEach(img => {
-      const filePath = path.join(__dirname, '..', img.url);
-      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-    });
+    if (project.gallery && project.gallery.length > 0) {
+      project.gallery.forEach(img => {
+        if (!img.url) return;
+
+        // convert URL → actual file path
+        const relativePath = img.url.replace('/uploads/', '');
+        const filePath = path.join(__dirname, '..', 'uploads', relativePath);
+
+        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+      });
+    }
 
     // Delete brochure
-    if (project.brochure) {
-      const filePath = path.join(__dirname, '..', project.brochure.url);
+    if (project.brochure && project.brochure.url) {
+      const relativePath = project.brochure.url.replace('/uploads/', '');
+      const filePath = path.join(__dirname, '..', 'uploads', relativePath);
+
       if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
     }
 
     await Project.deleteOne({ _id: project._id });
+
     res.json({ success: true, message: 'Deleted' });
 
   } catch (err) {
+    console.error('Delete error →', err);
     res.status(500).json({ success: false, message: err.message });
   }
 });
+
 
 module.exports = router;
