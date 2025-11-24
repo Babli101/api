@@ -49,20 +49,24 @@ router.post(
     try {
       const data = req.body;
 
-      // FIX → Generate correct relative URL
+      // BASE URL
+      const baseUrl = `${req.protocol}://${req.get('host')}`;
+
+      // FIX → Generate correct URL
       const gallery = req.files['gallery']
         ? req.files['gallery'].map(f => ({
-            url: `/uploads/projects/${path.basename(path.dirname(f.path))}/${path.basename(f.filename)}`,
-            filename: f.originalname
-          }))
+          url: `${baseUrl}/uploads/projects/${path.basename(path.dirname(f.path))}/${path.basename(f.filename)}`,
+          filename: f.originalname
+        }))
         : [];
 
       const brochure = req.files['brochure']
         ? {
-            url: `/uploads/projects/${path.basename(path.dirname(req.files['brochure'][0].path))}/${req.files['brochure'][0].filename}`,
-            filename: req.files['brochure'][0].originalname
-          }
+          url: `${baseUrl}/uploads/projects/${path.basename(path.dirname(req.files['brochure'][0].path))}/${req.files['brochure'][0].filename}`,
+          filename: req.files['brochure'][0].originalname
+        }
         : null;
+
 
       const location = {
         main: data.location,
