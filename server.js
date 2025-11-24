@@ -3,74 +3,26 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
-const multer = require('multer');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// -----------------------
+// -----------------------------
 // Middleware
-// -----------------------
+// -----------------------------
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// -----------------------
-// Upload Setup
-// -----------------------
-const uploadsDir = path.join(__dirname, 'uploads', 'projects');
-if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+// -----------------------------
+// Static file serving for uploads
+// -----------------------------
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const folderName = req.body.projectName
-      ? req.body.projectName.replace(/\s+/g, '-')
-      : 'project-' + Date.now();
-    const folderPath = path.join(uploadsDir, folderName);
-    if (!fs.existsSync(folderPath)) fs.mkdirSync(folderPath, { recursive: true });
-    cb(null, folderPath);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    const safeName = file.originalname.replace(/\s+/g, '-');
-    cb(null, `${uniqueSuffix}-${safeName}`);
-  }
-});
-
-const upload = multer({ storage });
-
-// -----------------------
-// ⚠️ FINAL STATIC FILE FIX (Render + Vercel Compatible)
-// -----------------------
-app.use('/uploads', (req, res, next) => {
-  res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
-  res.setHeader("Cross-Origin-Embedder-Policy", "unsafe-none");
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  next();
-});
-
-app.use(
-  '/uploads',
-  express.static(path.join(__dirname, 'uploads'), {
-    setHeaders: (res) => {
-      res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
-      res.setHeader("Cross-Origin-Embedder-Policy", "unsafe-none");
-      res.setHeader("Access-Control-Allow-Origin", "*");
-    }
-  })
-);
-
-// -----------------------
-// Root Route
-// -----------------------
-app.get('/', (req, res) => {
-  res.send('Explore Realty API is running...');
-});
-
-// -----------------------
+// -----------------------------
 // Routes
-// -----------------------
+// -----------------------------
 const projectRoutes = require('./routes/projectRoutes');
 const subscribeRoute = require('./routes/subscribe');
 const contactRoutes = require('./routes/contactRoutes');
@@ -81,24 +33,20 @@ app.use('/api/subscribe', subscribeRoute);
 app.use('/api/contact', contactRoutes);
 app.use('/api/auth', loginRoutes);
 
-// -----------------------
-// MongoDB Connection
-// -----------------------
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log('✅ MongoDB connected'))
-  .catch(err => console.log('❌ MongoDB connection error:', err));
-
-// -----------------------
-// Error Handler
-// -----------------------
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ error: err.message });
+app.get('/', (req, res) => {
+  res.send('Explore Realty API is running...');
 });
 
-// -----------------------
+// -----------------------------
+// Database
+// -----------------------------
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => console.log('MongoDB connected'))
+  .catch(err => console.log('MongoDB error:', err));
+
+// -----------------------------
 // Start Server
-// -----------------------
-app.listen(PORT, () =>
-  console.log(`🚀 Server running on http://localhost:${PORT}`)
-);
+// -----------------------------
+app.listen(PORT, () => {
+  console.log(`Server running on http://localhost:${PORT}`);
+});

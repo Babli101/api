@@ -5,50 +5,63 @@ const Project = require('../models/project');
 const path = require('path');
 const fs = require('fs');
 
-// ===============================
-// 📁 Upload Directory Setup
-// ===============================
-const uploadsDir = path.join(__dirname, '..', 'uploads');
-if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+// ---------------------------------------------
+// Upload folder (root/uploads/projects/...)
+// ---------------------------------------------
+const uploadsDir = path.join(__dirname, '..', 'uploads', 'projects');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
 
-// ===============================
-// 📸 Multer Configuration
-// ===============================
+// ---------------------------------------------
+// Multer Storage
+// ---------------------------------------------
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, uploadsDir);
+    const projectFolder = req.body.name
+      ? req.body.name.replace(/\s+/g, '-')
+      : ('project-' + Date.now());
+
+    const folder = path.join(uploadsDir, projectFolder);
+    if (!fs.existsSync(folder)) fs.mkdirSync(folder, { recursive: true });
+
+    cb(null, folder);
   },
   filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    cb(null, uniqueSuffix + '-' + file.originalname.replace(/\s+/g, '-'));
+    const safeName = file.originalname.replace(/\s+/g, '-');
+    const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    cb(null, unique + '-' + safeName);
   }
 });
 
 const upload = multer({ storage });
 
-// ===============================
-// ➕ Add New Project
-// ===============================
+// ---------------------------------------------
+// ADD PROJECT
+// ---------------------------------------------
 router.post(
   '/',
   upload.fields([
-    { name: 'gallery', maxCount: 15 },
+    { name: 'gallery', maxCount: 20 },
     { name: 'brochure', maxCount: 1 }
   ]),
   async (req, res) => {
     try {
       const data = req.body;
+
+      // FIX → Generate correct relative URL
       const gallery = req.files['gallery']
         ? req.files['gallery'].map(f => ({
-          url: `/uploads/${f.filename}`,
-          filename: f.originalname
-        }))
+            url: `/uploads/projects/${path.basename(path.dirname(f.path))}/${path.basename(f.filename)}`,
+            filename: f.originalname
+          }))
         : [];
+
       const brochure = req.files['brochure']
         ? {
-          url: `/uploads/${req.files['brochure'][0].filename}`,
-          filename: req.files['brochure'][0].originalname
-        }
+            url: `/uploads/projects/${path.basename(path.dirname(req.files['brochure'][0].path))}/${req.files['brochure'][0].filename}`,
+            filename: req.files['brochure'][0].originalname
+          }
         : null;
 
       const location = {
@@ -77,23 +90,25 @@ router.post(
         description: data.description,
         highlight: data.highlight,
         location,
+        possession: data.possession,
         gallery,
-        brochure,
-        possession: data.possession
+        brochure
       });
 
       await project.save();
+
       res.status(201).json({ success: true, project });
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ success: false, message: 'Server Error' });
+
+    } catch (error) {
+      console.log(error);
+      res.status(500).json({ success: false, message: 'Server error' });
     }
   }
 );
 
-// ===============================
-// 📜 Get All Projects
-// ===============================
+// ---------------------------------------------
+// GET ALL PROJECTS
+// ---------------------------------------------
 router.get('/', async (req, res) => {
   try {
     const projects = await Project.find();
@@ -103,52 +118,45 @@ router.get('/', async (req, res) => {
   }
 });
 
-// ===============================
-// 📋 Get Single Project
-// ===============================
+// ---------------------------------------------
+// GET SINGLE PROJECT
+// ---------------------------------------------
 router.get('/:id', async (req, res) => {
   try {
     const project = await Project.findById(req.params.id);
-    if (!project) return res.status(404).json({ success: false, message: 'Project not found' });
+    if (!project) return res.status(404).json({ success: false, message: 'Not found' });
+
     res.json({ success: true, project });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 });
 
-// ===============================
-// ❌ Delete Project by ID
-// ===============================
+// ---------------------------------------------
+// DELETE PROJECT
+// ---------------------------------------------
 router.delete('/:id', async (req, res) => {
   try {
     const project = await Project.findById(req.params.id);
-    if (!project) return res.status(404).json({ error: 'Project not found' });
+    if (!project) return res.status(404).json({ success: false, message: 'Not found' });
 
-    // Delete gallery files
-    if (project.gallery && project.gallery.length > 0) {
-      project.gallery.forEach(img => {
-        if (!img || !img.url) {
-          console.warn('⚠️ Skipping image with missing URL:', img);
-          return;
-        }
+    // Delete gallery images
+    project.gallery.forEach(img => {
+      const filePath = path.join(__dirname, '..', img.url);
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    });
 
-        const filePath = path.join(uploadsDir, path.basename(img.url));
-        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-      });
-    }
-
-
-    // Delete brochure file
-    if (project.brochure && project.brochure.url) {
-      const filePath = path.join(uploadsDir, path.basename(project.brochure.url));
+    // Delete brochure
+    if (project.brochure) {
+      const filePath = path.join(__dirname, '..', project.brochure.url);
       if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
     }
 
-    await project.deleteOne();
-    res.json({ message: '🗑️ Project deleted successfully' });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Failed to delete project' });
+    await Project.deleteOne({ _id: project._id });
+    res.json({ success: true, message: 'Deleted' });
+
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
